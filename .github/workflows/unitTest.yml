@@ -1,0 +1,39 @@
+name: Unit Test
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  unit-test:
+    name: unit-test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      # Node 22 is the oldest line satisfying the lockfile engines
+      # (^22.14.0 || >=24.10.0); Node 24 matches the action runtime.
+      # windows-latest guards the shell-free npm resolution in runNpm.js:
+      # the action runtime is the runner's Node, which does not bundle
+      # npm (#332)
+      matrix:
+        node-version: [22, 24]
+        os: ${{ fromJSON(github.actor == 'dependabot[bot]' && '["ubuntu-latest"]' || '["ubuntu-latest", "windows-latest"]') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Unit Tests
+        run: npm test

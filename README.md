@@ -92,7 +92,7 @@ steps:
       branches: |
         [
           '+([0-9])?(.{+([0-9]),x}).x',
-          'master',
+          'main',
           'next',
           'next-major',
           {
@@ -109,17 +109,20 @@ steps:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
 
-`branches` will override the `branches` attribute in your configuration file. If the attribute is not configured on both sides, the default is:
+`branches` will override the `branches` attribute in your configuration file. If the attribute is not configured on either side, semantic-release uses its own defaults. For the bundled semantic-release v25.0.9, these are:
 ```
 [
   '+([0-9])?(.{+([0-9]),x}).x',
   'master',
+  'main',
   'next',
   'next-major',
   {name: 'beta', prerelease: true},
   {name: 'alpha', prerelease: true}
 ]
 ```
+
+**NOTE**: semantic-release treats the *first* release branch that exists in your repository as the default one (published to the `latest` npm dist-tag and as the Latest GitHub Release), and every other release branch gets a distribution channel named after the branch. With the defaults above, if your repository still has a leftover `master` branch next to `main`, releases from `main` would be published to the `main` npm dist-tag instead of `latest`, and their GitHub Releases would be flagged as pre-releases. If your default branch is `main`, explicitly list it **first** (as in the example above) and remove stale `master` branches.
 
 See [configuration#branches](https://semantic-release.gitbook.io/semantic-release/usage/configuration#branches) for more information.
 
@@ -236,7 +239,7 @@ steps:
 ```
 
 #### tag_format
-The default tag format on semantic-release is `v{version}`. You can override that behavior using this option (helpful when you are using monorepos)
+The default tag format on semantic-release is `v${version}`. You can override that behavior using this option (helpful when you are using monorepos)
 
 ```yaml
 steps:

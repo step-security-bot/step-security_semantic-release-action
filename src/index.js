@@ -3,7 +3,6 @@ import fs from 'fs';
 import * as core from '@actions/core';
 import {
   warnDeprecatedInputs,
-  warnIfNoPackageJson,
   handleBranchesOption,
   handleDryRunOption,
   handleCiOption,
@@ -73,7 +72,6 @@ const release = async () => {
   }
   await setUpJob();
   warnDeprecatedInputs();
-  warnIfNoPackageJson();
   await installSpecifyingVersionSemantic();
   await assertSemanticReleaseVersion();
   await preInstall(core.getInput(inputs.extra_plugins));
