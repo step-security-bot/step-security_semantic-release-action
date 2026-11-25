@@ -5,8 +5,8 @@
   "action_type": "node",
   "upstream": {
     "repository": "cycjimmy/semantic-release-action",
-    "synced_tag": "v8.1.0",
-    "synced_commit": "9e1f8a3ef91f1097285028e799a5fb8bb90e8899",
+    "synced_tag": "v8.1.4",
+    "synced_commit": "ad51787758d9654d5a75150a89a6fa9b3ccef95e",
     "archived": false
   },
   "build": {

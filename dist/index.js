@@ -9995,7 +9995,7 @@ var require_form_data = __commonJS({
     var http3 = __require("http");
     var https2 = __require("https");
     var parseUrl2 = __require("url").parse;
-    var fs6 = __require("fs");
+    var fs5 = __require("fs");
     var Stream = __require("stream").Stream;
     var crypto3 = __require("crypto");
     var mime = require_mime_types();
@@ -10065,7 +10065,7 @@ var require_form_data = __commonJS({
         if (value.end != void 0 && value.end != Infinity && value.start != void 0) {
           callback(null, value.end + 1 - (value.start ? value.start : 0));
         } else {
-          fs6.stat(value.path, function(err, stat2) {
+          fs5.stat(value.path, function(err, stat2) {
             if (err) {
               callback(err);
               return;
@@ -36776,7 +36776,7 @@ var {
 } = axios_default;
 
 // src/index.js
-import fs5 from "fs";
+import fs4 from "fs";
 
 // node_modules/@actions/core/lib/command.js
 import * as os from "os";
@@ -37324,9 +37324,6 @@ function info(message) {
   process.stdout.write(message + os4.EOL);
 }
 
-// src/handleOptions.js
-import fs3 from "fs";
-
 // src/stringToJson.js
 var strToJsonFunc = (str) => new Function(`return ${str}`)();
 var strToJson = (str) => {
@@ -37374,15 +37371,6 @@ var warnDeprecatedInputs = () => {
     );
   }
 };
-var warnIfNoPackageJson = () => {
-  const skipNpmPlugin = getInput(inputs_default.skip_npm_plugin) === "true";
-  if (skipNpmPlugin || fs3.existsSync("package.json")) {
-    return;
-  }
-  warning(
-    `No package.json file found in ${process.cwd()}. The default @semantic-release/npm plugin requires one and will fail with "Missing package.json file." (ENOPKG). If this is not a Node.js project, set the 'skip_npm_plugin' input to true, or define a custom 'plugins' array without @semantic-release/npm in your release configuration.`
-  );
-};
 var handleDryRunOption = () => {
   const dryRun = getInput(inputs_default.dry_run);
   debug(`dryRun input: ${dryRun}`);
@@ -37411,7 +37399,7 @@ var handleExtends = () => {
   const extend2 = getInput(inputs_default.extends);
   debug(`extend input: ${extend2}`);
   if (extend2) {
-    const extendModuleNames = extend2.split(/\r?\n/).map((name) => name.replace(/(?<!^)@.+/, ""));
+    const extendModuleNames = extend2.split(/\s+/).map((name) => name.replace(/(?<!^)@.+/, ""));
     return {
       extends: extendModuleNames
     };
@@ -37459,10 +37447,14 @@ var handleSkipNpmPluginOption = () => {
 
 // src/handleError.js
 var EGITNOPERMISSION_HINT = `Push permission check failed (EGITNOPERMISSION). If you use the default GITHUB_TOKEN, grant write access to the job, e.g. "permissions: contents: write". This is also required in dry-run mode: semantic-release verifies push permission with "git push --dry-run". See https://github.com/cycjimmy/semantic-release-action#dry_run`;
+var ENOPKG_HINT = `The default @semantic-release/npm plugin requires a package.json file in the working directory. If this is not a Node.js project, set the 'skip_npm_plugin' input to true, or keep a custom 'plugins' array in your release configuration without @semantic-release/npm. See https://github.com/cycjimmy/semantic-release-action#skip_npm_plugin`;
 var hasErrorCode = (error2, code) => error2?.code === code || Array.isArray(error2?.errors) && error2.errors.some((subError) => hasErrorCode(subError, code));
 var handleError = (error2) => {
   if (hasErrorCode(error2, "EGITNOPERMISSION")) {
     warning(EGITNOPERMISSION_HINT);
+  }
+  if (hasErrorCode(error2, "ENOPKG")) {
+    warning(ENOPKG_HINT);
   }
   setFailed(error2);
 };
@@ -37501,24 +37493,49 @@ var setUpJob_task_default = async () => {
 };
 
 // src/runNpm.js
-import fs4 from "fs";
+import fs3 from "fs";
 import path2 from "path";
 import { promisify } from "util";
 import { execFile } from "child_process";
 var execFileAsync = promisify(execFile);
-var resolveNpmCliPath = () => {
-  const nodeDir = path2.dirname(process.execPath);
-  const npmCliPath = process.platform === "win32" ? path2.join(nodeDir, "node_modules", "npm", "bin", "npm-cli.js") : path2.join(nodeDir, "..", "lib", "node_modules", "npm", "bin", "npm-cli.js");
-  return fs4.existsSync(npmCliPath) ? npmCliPath : "";
+var resolveNpm = ({
+  platform: platform2 = process.platform,
+  execPath = process.execPath,
+  pathEnv = process.env.PATH
+} = {}) => {
+  const nodeDir = path2.dirname(execPath);
+  const bundledNpmCliPath = platform2 === "win32" ? path2.join(nodeDir, "node_modules", "npm", "bin", "npm-cli.js") : path2.join(nodeDir, "..", "lib", "node_modules", "npm", "bin", "npm-cli.js");
+  if (fs3.existsSync(bundledNpmCliPath)) {
+    return { npmCliPath: bundledNpmCliPath, nodePath: execPath };
+  }
+  if (platform2 !== "win32") {
+    return null;
+  }
+  for (const rawDir of (pathEnv || "").split(";")) {
+    const dir = rawDir.replace(/^"|"$/g, "");
+    if (!dir) {
+      continue;
+    }
+    const npmCliPath = path2.join(dir, "node_modules", "npm", "bin", "npm-cli.js");
+    if (!fs3.existsSync(npmCliPath)) {
+      continue;
+    }
+    const nodePath = path2.join(dir, "node.exe");
+    return {
+      npmCliPath,
+      nodePath: fs3.existsSync(nodePath) ? nodePath : execPath
+    };
+  }
+  return null;
 };
 var runNpm_default = async (args, options = {}) => {
-  const npmCliPath = resolveNpmCliPath();
-  if (npmCliPath) {
-    return execFileAsync(process.execPath, [npmCliPath, ...args], options);
+  const resolved = resolveNpm();
+  if (resolved) {
+    return execFileAsync(resolved.nodePath, [resolved.npmCliPath, ...args], options);
   }
   if (process.platform === "win32") {
     throw new Error(
-      "Unable to locate npm-cli.js for the current Node installation on Windows. semantic-release-action requires Node to be installed with npm bundled."
+      "Unable to locate npm-cli.js on Windows. semantic-release-action requires a Node installation bundled with npm; none was found next to the running Node executable or in PATH."
     );
   }
   return execFileAsync("npm", args, options);
@@ -37713,8 +37730,8 @@ var windUpJob_task_default = async (result) => {
 async function validateSubscription() {
   let repoPrivate;
   const eventPath = process.env.GITHUB_EVENT_PATH;
-  if (eventPath && fs5.existsSync(eventPath)) {
-    const payload = JSON.parse(fs5.readFileSync(eventPath, "utf8"));
+  if (eventPath && fs4.existsSync(eventPath)) {
+    const payload = JSON.parse(fs4.readFileSync(eventPath, "utf8"));
     repoPrivate = payload?.repository?.private;
   }
   const upstream = "cycjimmy/semantic-release-action";
@@ -37752,7 +37769,6 @@ var release = async () => {
   }
   await setUpJob_task_default();
   warnDeprecatedInputs();
-  warnIfNoPackageJson();
   await installSpecifyingVersionSemantic_task_default();
   await assertSemanticReleaseVersion_task_default();
   await preInstall_task_default(getInput(inputs_default.extra_plugins));
